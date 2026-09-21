@@ -14,6 +14,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.math.Rectangle;
 
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
@@ -33,6 +34,11 @@ public class Main implements ApplicationListener {
 
     Array<Sprite> dropSprites;
 
+    float dropTimer;
+
+    Rectangle bucketRectangle;
+    Rectangle dropRectangle;
+
     @Override
     public void create() {
         backgroundTexture = new Texture("background.png");
@@ -51,7 +57,12 @@ public class Main implements ApplicationListener {
 
         dropSprites = new Array<>();
 
-        createDroplet();
+        bucketRectangle = new Rectangle();
+        dropRectangle = new Rectangle();
+
+        music.setLooping(true);
+        music.setVolume(.5f);
+        music.play();
     }
 
     @Override
@@ -88,21 +99,37 @@ public class Main implements ApplicationListener {
     private void logic() {
         float worldWidth = viewport.getWorldWidth();
         float worldHeight = viewport.getWorldHeight();
-
-        // Store the bucket size for brevity
         float bucketWidth = bucketSprite.getWidth();
         float bucketHeight = bucketSprite.getHeight();
 
-        // Subtract the bucket width
         bucketSprite.setX(MathUtils.clamp(bucketSprite.getX(), 0, worldWidth - bucketWidth));
 
-        float delta = Gdx.graphics.getDeltaTime(); // retrieve the current delta
+        float delta = Gdx.graphics.getDeltaTime();
+        bucketRectangle.set(bucketSprite.getX(), bucketSprite.getY(), bucketWidth, bucketHeight);
 
-        // loop through each drop
-        for (Sprite dropSprite : dropSprites) {
-            dropSprite.translateY(-2f * delta); // move the drop downward every frame
+        for (int i = dropSprites.size - 1; i >= 0; i--) {
+            Sprite dropSprite = dropSprites.get(i);
+            float dropWidth = dropSprite.getWidth();
+            float dropHeight = dropSprite.getHeight();
+
+            dropSprite.translateY(-2f * delta);
+            dropRectangle.set(dropSprite.getX(), dropSprite.getY(), dropWidth, dropHeight);
+
+            if (dropSprite.getY() < -dropHeight) dropSprites.removeIndex(i);
+            else if (bucketRectangle.overlaps(dropRectangle)) {
+                dropSprites.removeIndex(i);
+                dropSound.play(); // Play the sound
+            }
+        }
+
+        dropTimer += delta;
+        if (dropTimer > 1f) {
+            dropTimer = 0;
+            createDroplet();
         }
     }
+
+
 
 
     private void draw() {
@@ -136,7 +163,7 @@ public class Main implements ApplicationListener {
         // create the drop sprite
         Sprite dropSprite = new Sprite(dropTexture);
         dropSprite.setSize(dropWidth, dropHeight);
-        dropSprite.setX(0);
+        dropSprite.setX(MathUtils.random(0f, worldWidth - dropWidth)); // Randomize the drop's x position
         dropSprite.setY(worldHeight);
         dropSprites.add(dropSprite); // Add it to the list
     }
